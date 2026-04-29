@@ -53,6 +53,10 @@ HTTPS_PROXY = os.getenv("HTTPS_PROXY")
 
 VN_TZ = timezone(timedelta(hours=7))
 
+if os.getenv("GOOGLE_CREDS") and not os.path.exists("creds.json"):
+    with open("creds.json", "w", encoding="utf-8") as f:
+        f.write(os.getenv("GOOGLE_CREDS"))
+
 
 def send_telegram(msg):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
