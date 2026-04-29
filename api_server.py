@@ -9,18 +9,18 @@ app = FastAPI()
 
 @app.get("/")
 def home():
-    return {"status": "API is running"}
+    return {"status": "ok", "message": "FB crawl API is running"}
 
 
-@app.get("/run-crawl")
-def run_crawl(group_url: str):
+@app.get("/run-all")
+def run_all():
     start = time.time()
 
     env = os.environ.copy()
     env["PYTHONIOENCODING"] = "utf-8"
 
     result = subprocess.run(
-        [sys.executable, "main.py", group_url],
+        [sys.executable, "main.py"],
         capture_output=True,
         text=True,
         encoding="utf-8",
