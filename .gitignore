@@ -3,5 +3,5 @@ creds.json
 __pycache__/
 *.pyc
 ngrok.exe
-data.json
 top_posts_results.json
+data.json
