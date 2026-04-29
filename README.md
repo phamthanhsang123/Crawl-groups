@@ -1,9 +1,12 @@
-﻿# AI_Automatic
+# AI_Automatic
 
 pip install -r requirements.txt.
+<!-- Cách lấy api gg sheets -->
+https://console.cloud.google.com
 creds.json
-
-
+Google Sheets API
+Google Drive API
+https://www.facebook.com/groups/168876233173374
 
 FB Groups Input
 input_groups
