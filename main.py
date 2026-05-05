@@ -7,6 +7,11 @@ import sys
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.service import Service
+import re
 
 import gspread
 import requests
@@ -56,6 +61,84 @@ VN_TZ = timezone(timedelta(hours=7))
 if os.getenv("GOOGLE_CREDS") and not os.path.exists("creds.json"):
     with open("creds.json", "w", encoding="utf-8") as f:
         f.write(os.getenv("GOOGLE_CREDS"))
+
+
+def create_driver():
+    options = webdriver.ChromeOptions()
+
+    options.add_argument(r"--user-data-dir=E:\chrome_profile")
+
+    # options.add_argument("--headless=new")
+    options.add_argument("--window-size=1920,1080")
+
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+
+    service = Service(ChromeDriverManager().install())
+
+    return webdriver.Chrome(service=service, options=options)
+
+def load_cookies(driver):
+    with open("cookies.json", "r", encoding="utf-8") as f:
+        cookies = json.load(f)
+
+    for cookie in cookies:
+        try:
+            cookie_dict = {
+                "name": cookie["name"],
+                "value": cookie["value"],
+                "domain": cookie["domain"],
+                "path": cookie.get("path", "/")
+            }
+
+            if "expirationDate" in cookie:
+                cookie_dict["expiry"] = int(cookie["expirationDate"])
+
+            driver.add_cookie(cookie_dict)
+
+        except Exception as e:
+            print("❌ Cookie lỗi:", e)        
+
+
+def get_member_count(driver, group_url):
+    try:
+        driver.get("https://www.facebook.com")
+        time.sleep(3)
+
+        # 👉 LOAD COOKIE Ở ĐÂY
+        load_cookies(driver)
+
+        # 👉 reload lại để áp dụng cookie
+        driver.get("https://www.facebook.com")
+        time.sleep(3)
+
+        # 👉 vào group
+        driver.get(group_url)
+        time.sleep(6)   
+        driver.execute_script("window.scrollTo(0, 800)")
+        time.sleep(2)
+
+        elements = driver.find_elements(
+    By.XPATH,
+    "//*[contains(text(),'thành viên')]"
+)
+
+        
+        for el in elements:
+            text = el.text.lower()
+
+            # chỉ lấy dòng có số + "thành viên"
+            if "thành viên" in text:
+                match = re.search(r'([\d\.,]+)\s*[km]?', text)
+                if match:
+                    return match.group(0) + " thành viên"
+
+        return "N/A"
+
+    except Exception:
+        return "ERROR"
 
 
 def send_telegram(msg):
@@ -369,6 +452,7 @@ def write_results_to_output_sheet(run_results: List[Dict[str, Any]]) -> None:
         "crawl_time",
         "group_url",
         "group_title",
+        "member_count",
         "crawl_status",
         "error_message",
         "posts_fetched",
@@ -428,6 +512,7 @@ def write_results_to_output_sheet(run_results: List[Dict[str, Any]]) -> None:
                 crawl_time,
                 item.get("group_url", ""),
                 item.get("group_title", ""),
+                item.get("member_count", ""), 
                 item.get("crawl_status", ""),
                 item.get("error_message", ""),
                 item.get("posts_fetched", 0),
@@ -487,6 +572,7 @@ def save_results_to_json(
 # MAIN
 # =========================
 def main() -> None:
+    driver = create_driver()
     try:
         groups = get_group_urls()
     except FileNotFoundError:
@@ -511,6 +597,7 @@ def main() -> None:
         print(f"{idx}. {group}")
 
     run_results: List[Dict[str, Any]] = []
+    
 
     print("\n=== BẮT ĐẦU CRAWL ===")
     print("Gợi ý vận hành an toàn:")
@@ -527,6 +614,7 @@ def main() -> None:
         result_item: Dict[str, Any] = {
             "group_url": group,
             "group_title": "",
+            "member_count": "",
             "crawl_status": "",
             "error_message": "",
             "posts_fetched": 0,
@@ -537,6 +625,10 @@ def main() -> None:
         try:
             posts = crawl_group(group)
             result_item["posts_fetched"] = len(posts)
+            member = get_member_count(driver, group)
+            result_item["member_count"] = member
+            print("Members:", member)
+            time.sleep(random.uniform(2,4))  # 👈 thêm dòng này
             print(f"Số post crawl được: {len(posts)}")
 
             top_post = find_top_post_24h(posts)
@@ -556,6 +648,7 @@ def main() -> None:
                 result_item["group_title"] = top_post.get(
                     "group_title", result_item["group_title"]
                 )
+                
 
                 vn_time = top_post["time"].astimezone(VN_TZ)
                 print("Top post:")
@@ -614,7 +707,7 @@ def main() -> None:
         print(f"Đã ghi kết quả vào tab '{OUTPUT_WORKSHEET_NAME}' trong Google Sheet.")
     except Exception as exc:
         print(f"Lỗi khi ghi output sheet: {exc}")
-
+    driver.quit()
 
 if __name__ == "__main__":
     main()
