@@ -66,9 +66,9 @@ if os.getenv("GOOGLE_CREDS") and not os.path.exists("creds.json"):
 def create_driver():
     options = webdriver.ChromeOptions()
 
-    options.add_argument(r"--user-data-dir=E:\chrome_profile")
+    # options.add_argument(r"--user-data-dir=E:\chrome_profile")
 
-    # options.add_argument("--headless=new")
+    options.add_argument("--headless=new")
     options.add_argument("--window-size=1920,1080")
 
     options.add_argument("--disable-blink-features=AutomationControlled")
@@ -122,18 +122,24 @@ def get_member_count(driver, group_url):
 
         elements = driver.find_elements(
     By.XPATH,
-    "//*[contains(text(),'thành viên')]"
+    "//*[contains(text(),'thành viên') or contains(text(),'Members') or contains(text(),'members')]"
 )
 
-        
         for el in elements:
             text = el.text.lower()
 
-            # chỉ lấy dòng có số + "thành viên"
-            if "thành viên" in text:
-                match = re.search(r'([\d\.,]+)\s*[km]?', text)
+            if (
+                "thành viên" in text
+                or "members" in text
+                or "member" in text
+            ):
+                match = re.search(r'([\d\.,]+\s*[km]?)', text)
+
                 if match:
-                    return match.group(0) + " thành viên"
+                    return match.group(1) + " thành viên"
+
+        for el in elements:
+            print("TEXT:", el.text)
 
         return "N/A"
 
